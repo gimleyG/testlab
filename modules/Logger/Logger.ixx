@@ -1,10 +1,10 @@
 module;
 #define LOGGER_API __declspec(dllexport)
 
-export module Logger;
+#include <ostream>
+#include <string>
 
-import<ostream>;
-import<string>;
+export module Logger;
 
 export namespace Log {
 
@@ -12,31 +12,36 @@ enum : uint32_t { WRITE_ALL = 0xFFFFFFFF };
 
 class Level {
  public:
-  explicit Level() : m_level{WRITE_ALL} {}
-  explicit Level(uint32_t lvl) : m_level{lvl} {}
+  explicit Level() : m_value{WRITE_ALL} {}
+  explicit Level(uint32_t lvl) : m_value{lvl} {}
 
-  bool Has(uint32_t flags) { return (m_level & flags) == flags; }
+  bool Has(Level lvl) { return (m_value & lvl.m_value) == lvl.m_value; }
 
  private:
-  uint32_t m_level;
+  uint32_t m_value;
 };
 
 class LOGGER_API Writer final {
  public:
-  explicit Writer(std::ostream& destination);
-  ~Writer() noexcept;
+  static void Init(std::ostream& destination);
 
-  void Info(Level lvl, std::string_view str);
+  static void SetLogLevel(Level lvl);
 
-  void Debug(Level lvl, std::string_view str);
+  static void Destroy();
 
-  void Warning(Level lvl, std::string_view str);
+  static void Info(Level lvl, std::string_view str);
 
-  void Error(Level lvl, std::string_view str);
+  static void Debug(Level lvl, std::string_view str);
 
- private:
-  class Impl;
-  Impl* m_impl;
+  static void Warning(Level lvl, std::string_view str);
+
+  static void Error(Level lvl, std::string_view str);
+};
+
+class LOGGER_API WriterHolder final {
+ public:
+  WriterHolder(std::ostream& destination) { Writer::Init(destination); }
+  ~WriterHolder() { Writer::Destroy(); }
 };
 
 }  // namespace Log

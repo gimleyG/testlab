@@ -1,35 +1,80 @@
 module;
 
+#include <iostream>
+#include <mutex>
+#include <optional>
+
 module Logger;
 
 namespace Log {
-class Writer::Impl {
+namespace {
+class WriterImpl {
  public:
-  Impl(std::ostream& dst) : m_dest{dst} {}
+  WriterImpl(std::ostream& dst) : m_dest{dst} {}
   std::ostream& Dst() { return m_dest; }
 
-  Impl& operator<<(std::string_view str) {
+  void ChangeLevel(Level lvl) { m_currentLevel = lvl; }
+
+  void Write(Level lvl, std::string_view str) {
+    if (!m_currentLevel.Has(lvl)) {
+      return;
+    }
     m_dest << str << std::endl;
-    return *this;
   }
 
- public:
+ private:
   std::ostream& m_dest;
+  Level m_currentLevel;
 };
 
-Writer::Writer(std::ostream& destination) : m_impl{new Impl(destination)} {}
-Writer::~Writer() {
-  if (m_impl) {
-    delete m_impl;
+using Lock = std::lock_guard<std::mutex>;
+std::mutex writerSync;
+std::optional<WriterImpl> writerImpl;
+
+#define LOCK_N_CHECK             \
+  const Lock l(writerSync);      \
+  if (!writerImpl.has_value()) { \
+    return;                      \
   }
+
+}  // namespace
+
+void Writer::Init(std::ostream& destination) {
+  const Lock l(writerSync);
+  if (writerImpl.has_value()) {
+    return;
+  }
+  writerImpl.emplace(destination);
 }
 
-void Writer::Info(Level lvl, std::string_view str) { *m_impl << str; }
+void Writer::SetLogLevel(Level lvl) {
+  LOCK_N_CHECK;
+  writerImpl->ChangeLevel(lvl);
+}
 
-void Writer::Debug(Level lvl, std::string_view str) { *m_impl << str; }
+void Writer::Destroy() {
+  LOCK_N_CHECK;
+  writerImpl.reset();
+}
 
-void Writer::Warning(Level lvl, std::string_view str) { *m_impl << str; }
+void Writer::Info(Level lvl, std::string_view str) {
+  LOCK_N_CHECK;
+  writerImpl->Write(lvl, str);
+}
 
-void Writer::Error(Level lvl, std::string_view str) { *m_impl << str; }
+void Writer::Debug(Level lvl, std::string_view str) {
+  LOCK_N_CHECK;
+  writerImpl->Write(lvl, str);
+}
+
+void Writer::Warning(Level lvl, std::string_view str) {
+  LOCK_N_CHECK;
+  writerImpl->Write(lvl, str);
+}
+
+void Writer::Error(Level lvl, std::string_view str) {
+  LOCK_N_CHECK;
+  writerImpl->Write(lvl, str);
+}
 
 }  // namespace Log
