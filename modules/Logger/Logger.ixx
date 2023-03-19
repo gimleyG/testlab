@@ -3,18 +3,40 @@ module;
 
 export module Logger;
 
-import<format>;
-import<iostream>;
+import<ostream>;
 import<string>;
 
-export namespace Logger {
+export namespace Log {
 
-void LOGGER_API Write(std::string_view str);
+enum : uint32_t { WRITE_ALL = 0xFFFFFFFF };
 
-template <typename... Args>
-inline void LOGGER_API Write(std::string_view str, Args... args) {
-  const auto toPrint = std::vformat(str, std::make_format_args(args...));
-  std::cout << toPrint;
-}
+class Level {
+ public:
+  explicit Level() : m_level{WRITE_ALL} {}
+  explicit Level(uint32_t lvl) : m_level{lvl} {}
 
-}  // namespace Logger
+  bool Has(uint32_t flags) { return (m_level & flags) == flags; }
+
+ private:
+  uint32_t m_level;
+};
+
+class LOGGER_API Writer final {
+ public:
+  explicit Writer(std::ostream& destination);
+  ~Writer() noexcept;
+
+  void Info(Level lvl, std::string_view str);
+
+  void Debug(Level lvl, std::string_view str);
+
+  void Warning(Level lvl, std::string_view str);
+
+  void Error(Level lvl, std::string_view str);
+
+ private:
+  class Impl;
+  Impl* m_impl;
+};
+
+}  // namespace Log
