@@ -1,5 +1,7 @@
 module;
 
+#include <chrono>
+#include <format>
 #include <iostream>
 #include <mutex>
 #include <optional>
@@ -19,7 +21,9 @@ class WriterImpl {
     if (!m_currentLevel.Has(lvl)) {
       return;
     }
-    m_dest << str << std::endl;
+    namespace chr = std::chrono;
+    chr::zoned_time zt{chr::current_zone(), chr::system_clock::now()};
+    m_dest << std::format("{:%F %X%z}: {}", zt, str) << std::endl;
   }
 
  private:
@@ -59,22 +63,22 @@ void Writer::Destroy() {
 
 void Writer::Info(Level lvl, std::string_view str) {
   LOCK_N_CHECK;
-  writerImpl->Write(lvl, str);
+  writerImpl->Write(lvl, std::format("[I]: {}", str));
 }
 
 void Writer::Debug(Level lvl, std::string_view str) {
   LOCK_N_CHECK;
-  writerImpl->Write(lvl, str);
+  writerImpl->Write(lvl, std::format("[D]: {}", str));
 }
 
 void Writer::Warning(Level lvl, std::string_view str) {
   LOCK_N_CHECK;
-  writerImpl->Write(lvl, str);
+  writerImpl->Write(lvl, std::format("[W]: {}", str));
 }
 
 void Writer::Error(Level lvl, std::string_view str) {
   LOCK_N_CHECK;
-  writerImpl->Write(lvl, str);
+  writerImpl->Write(lvl, std::format("[E]: {}", str));
 }
 
 }  // namespace Log
